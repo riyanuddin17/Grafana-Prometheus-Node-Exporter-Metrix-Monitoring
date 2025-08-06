@@ -1,0 +1,84 @@
+==========================
+📒 Monitoring & Logging Stack Notes
+==========================
+
+==========================
+🔹 Metrics Stack
+==========================
+
+1. Node Exporter: Node Exporter is only responsible for exposing system metrics — nothing more.(Think of Node Exporter as a "Metrics collector.")
+-------------------
+- Collects system-level metrics (CPU, Memory, Disk I/O and space, Network statistics, System load, Filesystem info)
+- Runs on each machine
+- Exposes data for Prometheus to scrape
+- Does NOT store data
+
+2. Prometheus: Think of Prometheus as a "Metrics storage and search engine."
+-------------------
+- Scrapes metrics from Node Exporter (and others)
+- Stores time-series metrics
+- Uses PromQL to query metrics
+- Can trigger alerts
+- Visualized using Grafana
+
+==========================
+🔹 Logging Stack
+==========================
+
+1. Promtail: Promtail is only responsible for reading and sending logs, nothing more.(Think of Promtail as a "log collector.")
+-------------------
+- Reads log files (e.g., /var/log/syslog)
+- Adds labels (e.g., job, host)
+- Sends log lines to Loki
+- Does NOT store logs
+
+2. Loki: Think of Loki as a "log storage and search engine."
+-------------------
+- Receives logs from Promtail
+- Stores logs in time-order
+- Indexes only labels (not log text)
+- Can be queried using LogQL
+- Integrated with Grafana for visualization
+
+==========================
+🔹 Grafana
+==========================
+- Visualizes both logs (from Loki) and metrics (from Prometheus)
+- Supports dashboards, alerts, and queries
+- Unified UI for observability
+
+==========================
+🔄 Analogy
+==========================
+
+Promtail      ≈ Node Exporter   → Data collectors  
+Loki          ≈ Prometheus      → Data storage & query engines  
+Grafana       = Common frontend for both
+
+==========================
+✅ Summary
+==========================
+
+| Tool         | Type           | Role                                |
+|--------------|----------------|-------------------------------------|
+| Node Exporter| Metrics Agent  | Exposes system metrics              |
+| Prometheus   | Metrics DB     | Scrapes & stores metrics            |
+| Promtail     | Log Agent      | Reads & sends logs to Loki          |
+| Loki         | Log DB         | Stores & indexes logs               |
+| Grafana      | UI Tool        | Visualizes both logs and metrics    |
+
+
+DaemonSets:
+If you're using exporters in Kubernetes, you almost always deploy them as DaemonSets so they run on every node.
+If you're running Kubernetes (k8s), you don’t install exporters directly on the server OS like you would on a traditional VM or bare metal.
+
+Instead, you:
+
+1) Deploy the exporter (like Node Exporter or Promtail) as a DaemonSet inside your Kubernetes cluster.
+
+2) The DaemonSet ensures one pod per node runs automatically on every node.
+
+3) Each pod acts like the exporter running on that node, collecting metrics or logs.
+
+4) No need to manually install anything on the nodes themselves.
+

@@ -1,0 +1,187 @@
+Instance requirements:
+
+- Select Ubuntu
+- Select t2.medium
+- Change volume from 8 GB to 20 GB because it is required
+- Security group allow "Inbound Rules"
+   - 9090  -> Prometheus
+   - 9100  -> Node Expoter
+   - 3000  -> Grafana
+   - 80
+   - 443
+   - 22
+
+
+1) Prometheus:
+
+cd ~
+sudo useradd --system --no-create-home --shell /bin/false prometheus
+wget https://github.com/prometheus/prometheus/releases/download/v2.47.1/prometheus-2.47.1.linux-amd64.tar.gz
+
+
+
+#####First, the user changes into the extracted Prometheus directory (prometheus-2.47.1.linux-amd64/), which contains the Prometheus binaries and configuration files. Then, with superuser privileges (sudo), two directories are created: /data, which will likely be used by Prometheus to store its time-series data, and /etc/prometheus, which will hold configuration and resource files. Next, the main Prometheus binaries — prometheus and promtool — are moved to /usr/local/bin/, placing them in the system’s executable path so they can be run from anywhere. After that, the consoles and console_libraries directories, which contain the web UI assets for Prometheus, are moved into /etc/prometheus/. Finally, the Prometheus configuration file prometheus.yml is moved to /etc/prometheus/prometheus.yml, placing it where Prometheus will look for its settings when it starts. This flow sets up Prometheus for proper execution and configuration on a Linux system.#####----->
+---------------------
+tar -xvf prometheus-2.47.1.linux-amd64.tar.gz
+cd prometheus-2.47.1.linux-amd64/
+sudo mkdir -p /data /etc/prometheus
+sudo mv prometheus promtool /usr/local/bin/
+sudo mv consoles/ console_libraries/ /etc/prometheus/
+sudo mv prometheus.yml /etc/prometheus/prometheus.yml
+
+----------------------
+sudo chown -R prometheus:prometheus /etc/prometheus/ /data/
+
+-----------------
+sudo nano /etc/systemd/system/prometheus.service
+
+---------------------
+prometheus.service
+
+[Unit]
+Description=Prometheus
+Wants=network-online.target
+After=network-online.target
+
+StartLimitIntervalSec=500
+StartLimitBurst=5
+
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+Restart=on-failure
+RestartSec=5s
+ExecStart=/usr/local/bin/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --storage.tsdb.path=/data \
+  --web.console.templates=/etc/prometheus/consoles \
+  --web.console.libraries=/etc/prometheus/console_libraries \
+  --web.listen-address=0.0.0.0:9090 \
+  --web.enable-lifecycle
+
+[Install]
+WantedBy=multi-user.target
+
+---------------------------------------------
+
+sudo systemctl enable prometheus
+sudo systemctl start prometheus
+
+sudo systemctl status prometheus
+
+
+-------------------------------------
+http://<your-server-ip>:9090
+
+-----------------------------------
+prometheus.yml
+
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['<node expoter ip>:9100']  --> add node expoter ip
+
+
+--------------------------------------------------------------------------
+##########################################################################
+--------------------------------------------------------------------------
+
+2) Node Expoter
+
+cd ~
+sudo useradd --system --no-create-home --shell /bin/false node_exporter
+wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz
+
+
+---------------------------------
+
+tar -xvf node_exporter-1.6.1.linux-amd64.tar.gz
+sudo mv node_exporter-1.6.1.linux-amd64/node_exporter /usr/local/bin/
+rm -rf node_exporter*
+
+
+------------------------------
+
+sudo nano /etc/systemd/system/node_exporter.service
+
+------------------------------
+
+[Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+StartLimitIntervalSec=500
+StartLimitBurst=5
+
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+Restart=on-failure
+RestartSec=5s
+ExecStart=/usr/local/bin/node_exporter --collector.logind
+
+[Install]
+WantedBy=multi-user.target
+
+---------------------------------
+
+sudo systemctl enable node_exporter
+sudo systemctl start node_exporter
+
+sudo systemctl status node_exporter
+
+---------------------------------
+
+Add ip to Prometheus.yml
+
+------------------------
+
+promtool check config /etc/prometheus/prometheus.yml
+
+curl -X POST http://localhost:9090/-/reload
+
+-----------------
+http://<your-prometheus-ip>:9090/targets
+
+Now to Promethius and in one drop down in up bar u will see a Targets click on it, it will show u prometheus and Node Exporter
+--------------------------------------------------------------------------
+##########################################################################
+--------------------------------------------------------------------------
+
+
+3) Grafana
+
+cd ~
+sudo apt-get update
+sudo apt-get install -y apt-transport-https software-properties-common
+
+wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+
+echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
+
+sudo apt-get update
+sudo apt-get -y install grafana
+
+sudo systemctl enable grafana-server
+
+
+sudo systemctl start grafana-server
+
+
+--------------------------
+
+http://<your-server-ip>:3000
+
+
+
+Go to Grafana -> Home ->  Data sources -> Select  "Prometheus" -> Pass the Promethius ip http://52.207.236.80:9090/ and scroll down and click on Save & Test >> it will show Success
+
+Now come to Home page click on + icon on top right -> Click on "Import dashboard" -> Search on google "Node Expoter Grafana Dashboard" and copy the id(1860) -> past it in Import dashboard and Click on "Load" -> Now click on Prometheus and click on Prometheus Data source and click on Import.
+
+

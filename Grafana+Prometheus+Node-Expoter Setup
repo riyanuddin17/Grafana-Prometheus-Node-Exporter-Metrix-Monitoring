@@ -15,6 +15,7 @@ Instance requirements:
 1) Prometheus:
 
 cd ~
+sudo apt update
 sudo useradd --system --no-create-home --shell /bin/false prometheus
 wget https://github.com/prometheus/prometheus/releases/download/v2.47.1/prometheus-2.47.1.linux-amd64.tar.gz
 
